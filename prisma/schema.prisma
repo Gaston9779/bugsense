@@ -1,0 +1,293 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String       @id @default(cuid())
+  name          String?
+  email         String?      @unique
+  emailVerified DateTime?    @map("email_verified")
+  image         String?
+  plan          String       @default("free") // "free", "premium", "pro"
+  createdAt     DateTime     @default(now()) @map("created_at")
+  updatedAt     DateTime     @updatedAt @map("updated_at")
+
+  accounts      Account[]
+  sessions      Session[]
+  repos         Repository[]
+  subscription  Subscription?
+  apiKeys       ApiKey[]
+  orgMemberships OrgMember[]
+  alertChannels AlertChannel[]
+
+  @@map("users")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String  @map("user_id")
+  type              String
+  provider          String
+  providerAccountId String  @map("provider_account_id")
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique @map("session_token")
+  userId       String   @map("user_id")
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+model Repository {
+  id           String    @id @default(cuid())
+  userId       String    @map("user_id")
+  orgId        String?   @map("org_id")
+  name         String
+  githubUrl    String    @map("github_url")
+  lastAnalyzed DateTime? @map("last_analyzed")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  user          User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization  Organization?          @relation(fields: [orgId], references: [id], onDelete: SetNull)
+  files         File[]
+  insights      Insight[]
+  schedule      ScheduledAnalysis?
+  history       RepoAnalysisHistory[]
+  correlations  FileCorrelation[]
+  alertChannels AlertChannel[]
+  branchComparisons BranchComparison[]
+
+  @@unique([userId, githubUrl])
+  @@map("repos")
+}
+
+model ScheduledAnalysis {
+  id         String    @id @default(cuid())
+  repoId     String    @unique @map("repo_id")
+  userId     String    @map("user_id")
+  frequency  String    @default("manual") // "daily", "weekly", "manual"
+  nextRun    DateTime? @map("next_run")
+  active     Boolean   @default(true)
+  createdAt  DateTime  @default(now()) @map("created_at")
+  updatedAt  DateTime  @updatedAt @map("updated_at")
+
+  repository Repository @relation(fields: [repoId], references: [id], onDelete: Cascade)
+
+  @@map("scheduled_analyses")
+}
+
+model File {
+  id                    String   @id @default(cuid())
+  repoId                String   @map("repo_id")
+  path                  String
+  language              String?
+  cyclomatic            Int?     @default(0)
+  loc                   Int?     @default(0) // Lines of Code
+  churn                 Int?     @default(0) // Number of times file has been modified
+  riskScore             Float?   @default(0) @map("risk_score")
+  // Advanced AST metrics (Feature F)
+  longFunctionsCount    Int?     @default(0) @map("long_functions_count")
+  maxFunctionLength     Int?     @default(0) @map("max_function_length")
+  nestedLoopsCount      Int?     @default(0) @map("nested_loops_count")
+  parameterOverloadCount Int?    @default(0) @map("parameter_overload_count")
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+
+  repository Repository @relation(fields: [repoId], references: [id], onDelete: Cascade)
+
+  @@unique([repoId, path])
+  @@map("files")
+}
+
+model Insight {
+  id         String   @id @default(cuid())
+  repoId     String   @map("repo_id")
+  message    String
+  severity   String   @default("info") // "info", "warning", "critical"
+  confidence Float?   @default(0.5) // 0-1, quanto siamo sicuri dell'insight
+  category   String?  // "complexity", "churn", "coupling", "size"
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  repository Repository @relation(fields: [repoId], references: [id], onDelete: Cascade)
+
+  @@map("insights")
+}
+
+model RepoAnalysisHistory {
+  id              String   @id @default(cuid())
+  repoId          String   @map("repo_id")
+  avgRisk         Float    @map("avg_risk")
+  maxRisk         Float    @map("max_risk")
+  highRiskCount   Int      @map("high_risk_count") // files con risk >= 7
+  totalFiles      Int      @map("total_files")
+  avgComplexity   Float    @map("avg_complexity")
+  avgChurn        Float?   @map("avg_churn")
+  // Delta metrics (Feature G)
+  riskDelta       Float?   @map("risk_delta")
+  complexityDelta Float?   @map("complexity_delta")
+  churnDelta      Float?   @map("churn_delta")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  repository Repository @relation(fields: [repoId], references: [id], onDelete: Cascade)
+
+  @@index([repoId, createdAt])
+  @@map("repo_analysis_history")
+}
+
+model FileCorrelation {
+  id        String   @id @default(cuid())
+  repoId    String   @map("repo_id")
+  fileA     String   @map("file_a")
+  fileB     String   @map("file_b")
+  score     Int      // numero di volte modificati insieme
+  lastSeen  DateTime @map("last_seen") // ultimo commit in cui sono stati modificati insieme
+  createdAt DateTime @default(now()) @map("created_at")
+
+  repository Repository @relation(fields: [repoId], references: [id], onDelete: Cascade)
+
+  @@unique([repoId, fileA, fileB])
+  @@index([repoId, score])
+  @@map("file_correlations")
+}
+
+// ============================================
+// ENTERPRISE FEATURES MODELS
+// ============================================
+
+// Subscription & Billing
+model Subscription {
+  id              String    @id @default(cuid())
+  userId          String    @unique @map("user_id")
+  plan            String    // "free", "premium", "pro"
+  status          String    @default("active") // "active", "canceled", "past_due"
+  stripeCustomerId String?  @unique @map("stripe_customer_id")
+  stripeSubscriptionId String? @unique @map("stripe_subscription_id")
+  currentPeriodEnd DateTime? @map("current_period_end")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("subscriptions")
+}
+
+// API Keys (Feature E)
+model ApiKey {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  name      String   @default("API Key")
+  key       String   @unique
+  active    Boolean  @default(true)
+  lastUsed  DateTime? @map("last_used")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("api_keys")
+}
+
+// Organizations (Feature D)
+model Organization {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  members      OrgMember[]
+  repositories Repository[]
+
+  @@map("organizations")
+}
+
+model OrgMember {
+  id        String   @id @default(cuid())
+  orgId     String   @map("org_id")
+  userId    String   @map("user_id")
+  role      String   @default("viewer") // "admin", "viewer"
+  createdAt DateTime @default(now()) @map("created_at")
+
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([orgId, userId])
+  @@map("org_members")
+}
+
+// Alert Channels (Feature C)
+model AlertChannel {
+  id         String   @id @default(cuid())
+  userId     String   @map("user_id")
+  repoId     String   @map("repo_id")
+  type       String   // "slack", "discord", "teams"
+  webhookUrl String   @map("webhook_url")
+  active     Boolean  @default(true)
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  repository Repository @relation(fields: [repoId], references: [id], onDelete: Cascade)
+
+  @@index([repoId])
+  @@map("alert_channels")
+}
+
+// Branch Comparison (Feature A)
+model BranchComparison {
+  id                String   @id @default(cuid())
+  repoId            String   @map("repo_id")
+  branchA           String   @map("branch_a")
+  branchB           String   @map("branch_b")
+  // Branch A metrics
+  branchARisk       Float    @map("branch_a_risk")
+  branchAComplexity Float    @map("branch_a_complexity")
+  branchAChurn      Float    @map("branch_a_churn")
+  // Branch B metrics
+  branchBRisk       Float    @map("branch_b_risk")
+  branchBComplexity Float    @map("branch_b_complexity")
+  branchBChurn      Float    @map("branch_b_churn")
+  // Deltas
+  riskDelta         Float    @map("risk_delta")
+  complexityDelta   Float    @map("complexity_delta")
+  churnDelta        Float    @map("churn_delta")
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  repository Repository @relation(fields: [repoId], references: [id], onDelete: Cascade)
+
+  @@index([repoId, createdAt])
+  @@map("branch_comparisons")
+}
