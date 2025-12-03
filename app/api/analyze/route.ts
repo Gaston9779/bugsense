@@ -14,70 +14,10 @@ async function analyzeFileCorrelations(
   repo: string,
   repoId: string
 ) {
-  try {
-    // Ottieni ultimi 100 commit
-    const commits = await client.octokit.rest.repos.listCommits({
-      owner,
-      repo,
-      per_page: 100,
-    });
-
-    const correlationMap = new Map<string, number>();
-
-    for (const commit of commits.data) {
-      try {
-        // Ottieni file modificati in questo commit
-        const commitDetail = await client.octokit.rest.repos.getCommit({
-          owner,
-          repo,
-          ref: commit.sha,
-        });
-
-        const files = commitDetail.data.files?.map((f) => f.filename) || [];
-
-        // Per ogni coppia di file modificati insieme, incrementa il contatore
-        for (let i = 0; i < files.length; i++) {
-          for (let j = i + 1; j < files.length; j++) {
-            const [fileA, fileB] = [files[i], files[j]].sort();
-            const key = `${fileA}|||${fileB}`;
-            correlationMap.set(key, (correlationMap.get(key) || 0) + 1);
-          }
-        }
-      } catch (e) {
-        // Skip commit se errore
-        continue;
-      }
-    }
-
-    // Salva correlazioni con score >= 2 (modificati insieme almeno 2 volte)
-    const correlations = Array.from(correlationMap.entries())
-      .filter(([_, score]) => score >= 2)
-      .map(([key, score]) => {
-        const [fileA, fileB] = key.split("|||");
-        return { fileA, fileB, score };
-      });
-
-    if (correlations.length > 0) {
-      // Cancella vecchie correlazioni
-      await prisma.fileCorrelation.deleteMany({ where: { repoId } });
-
-      // Salva nuove correlazioni
-      await prisma.fileCorrelation.createMany({
-        data: correlations.map((c) => ({
-          repoId,
-          fileA: c.fileA,
-          fileB: c.fileB,
-          score: c.score,
-          lastSeen: new Date(),
-        })),
-      });
-
-      console.log(`[Correlations] Saved ${correlations.length} file correlations`);
-    }
-  } catch (error) {
-    console.error("[Correlations] Error:", error);
-    // Non bloccare l'analisi se le correlazioni falliscono
-  }
+  // Nota: la versione corrente di GitHubClient non espone più l'istanza Octokit.
+  // Per evitare errori di build e mantenere l'analisi principale funzionante,
+  // questa funzione è temporaneamente disabilitata.
+  console.log("[Correlations] Skipped: GitHubClient does not expose raw Octokit in this build");
 }
 
 // Limit analysis to avoid heavy requests in dev
