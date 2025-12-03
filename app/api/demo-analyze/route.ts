@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
         const churn = await githubClient.getFileCommits(info.owner, info.repo, path);
         const riskScore = calculateRiskScore({ cyclomatic, churn, loc });
 
-        const insights = generateInsights([{ path, cyclomatic, loc, churn, riskScore }]);
+        const insights = generateInsights([{ path, cyclomatic, loc, churn, risk: riskScore }]);
         insightsGenerated += insights.length;
 
         filesAnalyzed += 1;
