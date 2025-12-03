@@ -64,12 +64,12 @@ export function RiskTrendGraph({ repoId }: RiskTrendGraphProps) {
             <CardTitle className="text-lg font-semibold">Rischio nel Tempo</CardTitle>
             <InfoModal
               title="Rischio nel Tempo"
-              description="Grafico storico che mostra l&#39;evoluzione del rischio della repository nel tempo."
+              description="Grafico storico che mostra l&apos;evoluzione del rischio della repository nel tempo."
               details={[
                 "Linea gialla: Rischio medio di tutti i file ad ogni analisi",
                 "Linea rossa tratteggiata: Rischio massimo rilevato",
                 "Barre rosse: Numero di file critici (risk score ≥ 7)",
-                "Ogni punto rappresenta un&#39;analisi completa della repository",
+                "Ogni punto rappresenta un&apos;analisi completa della repository",
               ]}
               interpretation={{
                 low: "Trend discendente: Miglioramento della qualità del codice",
@@ -123,12 +123,12 @@ export function RiskTrendGraph({ repoId }: RiskTrendGraphProps) {
             <CardTitle className="text-lg font-semibold">Rischio nel Tempo</CardTitle>
             <InfoModal
               title="Rischio nel Tempo"
-              description="Grafico storico che mostra l'evoluzione del rischio della repository nel tempo."
+              description="Grafico storico che mostra l&apos;evoluzione del rischio della repository nel tempo."
               details={[
                 "Linea gialla: Rischio medio di tutti i file ad ogni analisi",
                 "Linea rossa tratteggiata: Rischio massimo rilevato",
                 "Barre rosse: Numero di file critici (risk score ≥ 7)",
-                "Ogni punto rappresenta un'analisi completa della repository",
+                "Ogni punto rappresenta un&apos;analisi completa della repository",
               ]}
               interpretation={{
                 low: "Trend discendente: Miglioramento della qualità del codice",
