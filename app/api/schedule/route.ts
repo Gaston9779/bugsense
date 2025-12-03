@@ -66,18 +66,19 @@ export async function POST(req: NextRequest) {
       nextRun.setDate(nextRun.getDate() + 7); // +7 giorni
     }
 
-    // Upsert schedule
-    const schedule = await prisma.analysisSchedule.upsert({
+    // Upsert schedule (ScheduledAnalysis model)
+    const schedule = await prisma.scheduledAnalysis.upsert({
       where: { repoId },
       create: {
         repoId,
+        userId: session.user.id,
         frequency: frequency || "manual",
-        enabled: enabled || false,
+        active: enabled ?? false,
         nextRun,
       },
       update: {
         frequency: frequency || "manual",
-        enabled: enabled || false,
+        active: enabled ?? false,
         nextRun,
       },
     });
