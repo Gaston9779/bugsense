@@ -19,10 +19,13 @@ export interface AccessControlResult {
   error?: string;
 }
 
+// Tipo di feature supportato dal sistema di piani, derivato direttamente da canAccessFeature
+type FeatureKey = Parameters<typeof canAccessFeature>[1];
+
 /**
  * Verify user is authenticated and has required plan
  */
-export async function verifyAccess(requiredFeature?: keyof typeof PLAN_LIMITS.pro): Promise<AccessControlResult> {
+export async function verifyAccess(requiredFeature?: FeatureKey): Promise<AccessControlResult> {
   const session = await getServerSession(authOptions);
 
   if (!session?.user?.id) {
@@ -95,7 +98,7 @@ export async function verifyAccess(requiredFeature?: keyof typeof PLAN_LIMITS.pr
  */
 export function withAccessControl(
   handler: (req: Request, context: { user: NonNullable<AccessControlResult["user"]> }) => Promise<Response>,
-  requiredFeature?: keyof typeof PLAN_LIMITS.pro
+  requiredFeature?: FeatureKey
 ) {
   return async (req: Request, routeContext?: any) => {
     const access = await verifyAccess(requiredFeature);
