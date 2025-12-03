@@ -39,7 +39,7 @@ export default function DemoPage() {
       <div className="text-center mb-8">
         <h1 className="text-4xl font-bold mb-2">BugSense Demo</h1>
         <p className="text-muted-foreground">
-          Testa l'analisi repository senza login
+          Testa l&apos;analisi repository senza login
         </p>
       </div>
 
